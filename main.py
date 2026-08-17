@@ -1,5 +1,6 @@
-from utils import calculate_sum
+import sys
 from git import Repo
+from utils import calculate_sum
 from analyzer import (
     analyze_repository,
     find_import_dependencies,
@@ -7,75 +8,86 @@ from analyzer import (
     get_changed_files
 )
 
-repo = Repo(".")
 
-print("Repository Intelligence Analyzer")
-print("---------------------------------")
+def main():
 
-print("Current branch:", repo.active_branch.name)
-print("Repository path:", repo.working_tree_dir)
+    # Get repository path from command line
+    if len(sys.argv) > 1:
+        repo_path = sys.argv[1]
+    else:
+        repo_path = "."
 
-print("\nCommit History")
-print("-------------")
+    try:
+        repo = Repo(repo_path)
+    except Exception:
+        print("Error: The given path is not a valid Git repository.")
+        return
 
-for commit in repo.iter_commits():
-    print(commit.hexsha[:8], "-", commit.message.strip())
+    print("Repository Intelligence Analyzer")
+    print("---------------------------------")
 
-# Latest commit
-latest_commit = repo.head.commit
+    print("Current branch:", repo.active_branch.name)
+    print("Repository path:", repo.working_tree_dir)
 
-print("\nLatest Commit")
-print("-------------")
-print("Commit:", latest_commit.hexsha[:8])
-print("Message:", latest_commit.message.strip())
+    # Commit history
+    print("\nCommit History")
+    print("-------------")
 
-print("\nChanged Files")
-print("-------------")
+    for commit in repo.iter_commits():
+        print(commit.hexsha[:8], "-", commit.message.strip())
 
-if latest_commit.parents:
-    parent = latest_commit.parents[0]
+    # Latest commit
+    latest_commit = repo.head.commit
 
-    for change in parent.diff(latest_commit):
-        print(change.change_type, "-", change.a_path)
-else:
-    print("This is the first commit; no previous commit to compare with.")
+    print("\nLatest Commit")
+    print("-------------")
+    print("Commit:", latest_commit.hexsha[:8])
+    print("Message:", latest_commit.message.strip())
 
-# Analyzer test
-print("\nAnalyzer is ready!")
-print("Test result:", calculate_sum(10, 20))
+    # Changed files
+    print("\nChanged Files")
+    print("-------------")
 
+    changed_files = get_changed_files(repo)
 
-print("\nRepository Analysis")
-print("-------------------")
+    if changed_files:
+        for changed_file in changed_files:
+            print("-", changed_file)
+    else:
+        print("No changed files found.")
 
-results = analyze_repository(repo.working_tree_dir)
+    # Repository analysis
+    print("\nRepository Analysis")
+    print("-------------------")
 
-print("Python Files:", len(results))
+    results = analyze_repository(repo.working_tree_dir)
 
-for result in results:
-    print("\nFile:", result["file"])
-    print("Lines:", result["lines"])
-    print("Functions:", result["functions"])
-    print("Classes:", result["classes"])
+    print("Total Python files:", len(results))
+
+    for result in results:
+        print("\nFile:", result["file"])
+        print("Lines:", result["lines"])
+        print("Functions:", result["functions"])
+        print("Classes:", result["classes"])
+
+    # Import dependencies
     print("\nImport Dependencies")
-print("-------------------")
+    print("-------------------")
 
-dependencies = find_import_dependencies(repo.working_tree_dir)
+    dependencies = find_import_dependencies(repo.working_tree_dir)
 
-for file, imports in dependencies.items():
-    print("\n", file)
-    print("Imports:", imports)
+    for file, imports in dependencies.items():
+        print("\n", file)
+        print("Imports:", imports)
+
+    # Change impact analysis
     print("\nChange Impact Analysis")
-print("----------------------")
-print("\nAutomatic Change Impact Analysis")
-print("--------------------------------")
+    print("----------------------")
 
-changed_files = get_changed_files(repo)
+    total_affected = 0
 
-if not changed_files:
-    print("No changed files found.")
-else:
     for changed_file in changed_files:
+
         print("\nChanged file:", changed_file)
 
         affected_files = find_affected_files(
@@ -85,26 +97,25 @@ else:
 
         if affected_files:
             print("Potentially affected files:")
+
             for file in affected_files:
                 print("-", file)
+
+            total_affected += len(affected_files)
+
         else:
             print("No affected files found.")
-            print("\nAnalysis Summary")
-print("----------------")
 
-print("Total Python files:", len(results))
-print("Total changed files:", len(changed_files))
+    # Summary
+    print("\nAnalysis Summary")
+    print("----------------")
 
-total_affected = 0
+    print("Total Python files:", len(results))
+    print("Total changed files:", len(changed_files))
+    print("Total potentially affected files:", total_affected)
 
-for changed_file in changed_files:
-    affected_files = find_affected_files(
-        repo.working_tree_dir,
-        changed_file
-    )
-    total_affected += len(affected_files)
+    print("\nAnalyzer completed successfully!")
 
-print("Total potentially affected files:", total_affected)
 
-print("\nAnalyzer completed successfully!")
-  
+if __name__ == "__main__":
+    main()
